@@ -1,9 +1,8 @@
-﻿.vs/
+.vs/
 build/
 packages/
 bin/
 obj/
-
 AccountData.json
 AccountData.json.*
 RecentGames.json
@@ -13,6 +12,7 @@ RAMTheme.ini
 BrowserConfig.json
 proxies.txt
 Backups/
+NoEncryption.IUnderstandTheRisks.iautamor
 *.log
 *.tmp
 *.bak*
@@ -20,5 +20,5 @@ Backups/
 *.old
 *.autofix_bak
 nuget.exe
-
-NoEncryption.IUnderstandTheRisks.iautamor
+installer/Output/
+installer/MicrosoftEdgeWebview2Setup.exe
