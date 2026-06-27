@@ -3,6 +3,7 @@ build/
 packages/
 bin/
 obj/
+
 AccountData.json
 AccountData.json.*
 RecentGames.json
@@ -19,4 +20,5 @@ Backups/
 *.old
 *.autofix_bak
 nuget.exe
+
 NoEncryption.IUnderstandTheRisks.iautamor
