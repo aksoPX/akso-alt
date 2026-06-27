@@ -1,0 +1,146 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>akso alt</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">A</div>
+        <div>
+          <div class="brand-title">akso alt</div>
+          <div class="brand-subtitle">account manager</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-page="dashboard">Главная</button>
+        <button class="nav-item" data-page="accounts">Аккаунты</button>
+        <button class="nav-item" data-page="launch">Запуск</button>
+        <button class="nav-item" data-page="games">Игры</button>
+        <button class="nav-item" data-page="profile">Профиль</button>
+        <button class="nav-item" data-page="security">Безопасность</button>
+        <button class="nav-item" data-page="tools">Инструменты</button>
+      </nav>
+      <div class="sidebar-note">Все чувствительные действия требуют подтверждения в приложении.</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Главная</h1>
+          <p id="pageSubtitle">Обзор аккаунтов, рисков и быстрых действий</p>
+        </div>
+        <div class="top-actions">
+          <button class="ghost" data-action="refresh">Обновить</button>
+          <button class="primary" data-action="help">Справка</button>
+        </div>
+      </header>
+
+      <section class="page active" id="dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><span>Аккаунтов</span><strong id="statAccounts">0</strong></div>
+          <div class="stat-card"><span>Выбрано</span><strong id="statSelected">0</strong></div>
+          <div class="stat-card"><span>Риск</span><strong id="statRisk">низкий</strong></div>
+          <div class="stat-card"><span>WebServer</span><strong id="statWeb">выкл</strong></div>
+        </div>
+        <div class="grid two">
+          <div class="panel">
+            <h2>Быстрый запуск</h2>
+            <label>Place ID</label>
+            <input id="dashPlace" placeholder="Например 5315046213" />
+            <label>Job ID / VIP ссылка</label>
+            <input id="dashJob" placeholder="Необязательно" />
+            <button class="primary wide" data-action="launchDash">Запустить выбранный аккаунт</button>
+          </div>
+          <div class="panel">
+            <h2>Безопасность</h2>
+            <p class="muted">Проверь настройки перед работой с cookies, WebServer и Nexus.</p>
+            <button class="danger wide" data-action="securityAudit">Проверить риски</button>
+            <button class="ghost wide" data-action="backup">Сделать backup AccountData</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="accounts">
+        <div class="panel fill">
+          <div class="toolbar">
+            <input id="accountSearch" class="search" placeholder="Поиск по username, alias, группе или описанию" />
+            <button class="primary" data-action="addAccount">Добавить</button>
+            <button class="ghost" data-action="openBrowser">Браузер</button>
+            <button class="ghost" data-action="utilities">Утилиты</button>
+            <button class="danger" data-action="removeAccount">Удалить</button>
+          </div>
+          <div id="accountsList" class="accounts-list empty">Аккаунтов пока нет</div>
+        </div>
+      </section>
+
+      <section class="page" id="launch">
+        <div class="panel narrow">
+          <h2>Запуск Roblox</h2>
+          <label>Place ID / ссылка на игру</label>
+          <input id="placeId" />
+          <label>Job ID / VIP ссылка</label>
+          <input id="jobId" />
+          <div class="button-row">
+            <button class="primary" data-action="launch">Запустить</button>
+            <button class="ghost" data-action="saveServer">Сохранить сервер</button>
+          </div>
+          <p class="hint">Place ID — ID игры. Job ID — ID конкретного сервера.</p>
+        </div>
+      </section>
+
+      <section class="page" id="games">
+        <div class="grid two">
+          <div class="panel"><h2>Серверы и игры</h2><p class="muted">Открывает старый центр серверов, избранного, universe, outfits и watcher.</p><button class="primary wide" data-action="serverList">Открыть центр игр</button></div>
+          <div class="panel"><h2>Watcher</h2><p class="muted">Следит за процессами Roblox и помогает закрывать зависшие окна.</p><button class="ghost wide" data-action="serverList">Открыть Watcher</button></div>
+        </div>
+      </section>
+
+      <section class="page" id="profile">
+        <div class="panel narrow">
+          <h2>Профиль и заметки</h2>
+          <label>Username для Follow</label>
+          <input id="followUser" />
+          <button class="ghost wide" data-action="follow">Follow игрока</button>
+          <label>Псевдоним</label>
+          <input id="alias" />
+          <label>Описание</label>
+          <textarea id="description"></textarea>
+          <div class="button-row">
+            <button class="primary" data-action="setAlias">Сохранить псевдоним</button>
+            <button class="primary" data-action="setDescription">Сохранить описание</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="security">
+        <div class="grid two">
+          <div class="panel"><h2>Проверка рисков</h2><p class="muted">Показывает включённые опасные настройки.</p><button class="danger wide" data-action="securityAudit">Проверить</button></div>
+          <div class="panel"><h2>Backup</h2><p class="muted">Создаёт копию AccountData.json.</p><button class="primary wide" data-action="backup">Создать backup</button></div>
+          <div class="panel"><h2>Буфер обмена</h2><p class="muted">Очищай буфер после копирования паролей или токенов.</p><button class="ghost wide" data-action="clearClipboard">Очистить буфер</button></div>
+          <div class="panel"><h2>Экспорт</h2><p class="muted">Экспорт настроек без аккаунтов и cookies.</p><button class="ghost wide" data-action="exportSettings">Экспортировать</button></div>
+        </div>
+      </section>
+
+      <section class="page" id="tools">
+        <div class="grid three">
+          <button class="tool" data-action="settings">Настройки</button>
+          <button class="tool" data-action="theme">Тема</button>
+          <button class="tool" data-action="nexus">Nexus</button>
+          <button class="tool" data-action="arguments">Аргументы</button>
+          <button class="tool" data-action="help">Справочник</button>
+          <button class="tool" data-action="refresh">Обновить UI</button>
+          <button class="tool" data-action="toggleSound">Звук вкл/выкл</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

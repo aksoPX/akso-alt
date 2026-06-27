@@ -1,0 +1,352 @@
+﻿const state = {
+  accounts: [],
+  selectedUserIds: new Set(),
+  settings: {},
+  servers: []
+};
+
+const pages = {
+  home: ["Главная", "Обзор аккаунтов, запуска и настроек"],
+  accounts: ["Аккаунты", "Поиск, выбор и управление аккаунтами"],
+  launch: ["Запуск", "Place ID, Job ID и запуск Roblox"],
+  more: ["Прочее", "Игры, настройки, безопасность, backup и тема"]
+};
+
+const settingsSchema = [
+  {
+    title: "Основное",
+    items: [
+      ["General", "EnableMultiRbx", "bool", "Multi Roblox", "Позволяет запускать несколько Roblox-клиентов. Требует закрыть Roblox и перезапустить менеджер."],
+      ["General", "AsyncJoin", "bool", "Асинхронный запуск", "Запускает аккаунты параллельно."],
+      ["General", "AccountJoinDelay", "number", "Задержка запуска", "Задержка между аккаунтами в секундах."],
+      ["General", "SavePasswords", "bool", "Сохранять пароли", "Локальное сохранение паролей."],
+      ["General", "AutoCookieRefresh", "bool", "Автообновление cookies", "Периодическое обновление cookies."],
+      ["General", "ShowPresence", "bool", "Показывать presence", "Отображение статуса аккаунтов."]
+    ]
+  },
+  {
+    title: "Запуск и серверы",
+    items: [
+      ["General", "ShuffleJobId", "bool", "Shuffle JobId", "Случайный сервер при запуске."],
+      ["General", "ShuffleChoosesLowestServer", "bool", "Shuffle выбирает малый сервер", "Выбирает сервер с меньшим количеством игроков."],
+      ["General", "ShufflePageCount", "number", "Страниц для shuffle", "Сколько страниц серверов проверять."],
+      ["General", "MaxRecentGames", "number", "Недавних игр", "Максимум недавних игр."],
+      ["General", "ServerRegionFormat", "text", "Формат региона", "Формат отображения региона сервера."]
+    ]
+  },
+  {
+    title: "FPS / Roblox",
+    items: [
+      ["General", "UnlockFPS", "bool", "Unlock FPS", "Патчит ClientAppSettings."],
+      ["General", "MaxFPSValue", "number", "Лимит FPS", "Значение FPS."],
+      ["General", "AutoCloseLastProcess", "bool", "Закрывать старый процесс", "Предотвращает дубли аккаунта."],
+      ["General", "DisableAgingAlert", "bool", "Отключить aging alert", "Убирает индикатор давно неиспользованных аккаунтов."],
+      ["General", "HideRbxAlert", "bool", "Скрыть Multi Roblox предупреждение", "Не показывать предупреждение при запущенном Roblox."]
+    ]
+  },
+  {
+    title: "WebServer",
+    items: [
+      ["Developer", "DevMode", "bool", "Developer Mode", "Показывает расширенные функции."],
+      ["Developer", "EnableWebServer", "bool", "Включить WebServer", "Локальный HTTP API."],
+      ["WebServer", "WebServerPort", "number", "Порт WebServer", "Порт локального API."],
+      ["WebServer", "EveryRequestRequiresPassword", "bool", "Пароль на каждый запрос", "Повышает безопасность API."],
+      ["WebServer", "Password", "password", "Пароль WebServer", "Не показывай другим."],
+      ["WebServer", "AllowGetAccounts", "bool", "Allow GetAccounts", "Разрешить список аккаунтов."],
+      ["WebServer", "AllowLaunchAccount", "bool", "Allow LaunchAccount", "Разрешить запуск через API."],
+      ["WebServer", "AllowAccountEditing", "bool", "Allow Account Editing", "Разрешить изменения через API."],
+      ["WebServer", "AllowGetCookie", "bool-danger", "Allow GetCookie", "Опасно: API сможет отдавать cookies."],
+      ["WebServer", "AllowExternalConnections", "bool-danger", "External Connections", "Опасно: разрешает подключения извне."]
+    ]
+  },
+  {
+    title: "Watcher",
+    items: [
+      ["Watcher", "Enabled", "bool", "Roblox Watcher", "Следит за процессами Roblox."],
+      ["Watcher", "ScanInterval", "number", "Интервал скана", "Секунды."],
+      ["Watcher", "ReadInterval", "number", "Интервал чтения", "Миллисекунды."],
+      ["Watcher", "ExitOnBeta", "bool", "Закрывать Beta Menu", "Закрывает beta home menu."],
+      ["Watcher", "ExitIfNoConnection", "bool", "Закрывать без подключения", "Закрывает Roblox без соединения."],
+      ["Watcher", "NoConnectionTimeout", "number", "Таймаут без подключения", "Секунды."],
+      ["Watcher", "IgnoreExistingProcesses", "bool", "Игнорировать старые процессы", "Не трогать процессы до запуска watcher."],
+      ["Watcher", "SaveWindowPositions", "bool", "Сохранять позиции окон", "Запоминает расположение окон."],
+      ["Watcher", "VerifyDataModel", "bool", "Verify DataModel", "Проверка по логам."],
+      ["Watcher", "CloseRbxMemory", "bool", "Закрывать при низкой RAM", "Закрывает если память ниже порога."],
+      ["Watcher", "MemoryLowValue", "number", "Порог RAM MB", "Минимальный порог памяти."],
+      ["Watcher", "CloseRbxWindowTitle", "bool", "Проверять заголовок окна", "Закрывать при неправильном title."],
+      ["Watcher", "ExpectedWindowTitle", "text", "Ожидаемый заголовок", "Например Roblox."]
+    ]
+  },
+  {
+    title: "Account Control",
+    items: [
+      ["AccountControl", "StartOnLaunch", "bool", "Старт при запуске", "Запускать Account Control вместе с менеджером."],
+      ["AccountControl", "UsePresence", "bool", "Use Presence API", "Использовать Presence API."],
+      ["AccountControl", "InternetCheck", "bool", "Проверять интернет", "Перед запуском аккаунтов."],
+      ["AccountControl", "RelaunchDelay", "number", "Relaunch delay", "Секунды."],
+      ["AccountControl", "LauncherDelayNumber", "number", "Launcher delay", "Секунды."],
+      ["AccountControl", "NexusPort", "number", "Nexus port", "Порт WebSocket."],
+      ["AccountControl", "AllowExternalConnections", "bool-danger", "External connections", "Опасно: внешние подключения."]
+    ]
+  }
+];
+
+let audio = null;
+
+function sound(type = "tap") {
+  try {
+    if (localStorage.getItem("aksoSound") === "off") return;
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    const freq = type === "nav" ? 520 : type === "danger" ? 180 : type === "launch" ? 760 : 620;
+    osc.frequency.value = freq;
+    osc.type = type === "danger" ? "sawtooth" : "triangle";
+    gain.gain.setValueAtTime(0.0001, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.10, audio.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.06);
+    osc.connect(gain);
+    gain.connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + 0.08);
+  } catch {}
+}
+
+function send(action, data = {}) {
+  if (action !== "ready" && action !== "refresh") sound(action.toLowerCase().includes("launch") ? "launch" : "tap");
+  window.chrome?.webview?.postMessage({ action, data });
+}
+
+function toast(text) {
+  const el = document.getElementById("toast");
+  el.textContent = text;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 2400);
+}
+
+function showPage(id) {
+  sound("nav");
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === id));
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.page === id));
+  document.getElementById("pageTitle").textContent = pages[id][0];
+  document.getElementById("pageSub").textContent = pages[id][1];
+  localStorage.setItem("aksoPage", id);
+}
+
+function showMoreTab(id) {
+  document.querySelectorAll(".more-panel").forEach(p => p.classList.toggle("active", p.id === "more-" + id));
+  document.querySelectorAll(".more-tab").forEach(b => b.classList.toggle("active", b.dataset.more === id));
+  localStorage.setItem("aksoMoreTab", id);
+}
+
+function render() {
+  document.getElementById("statAccounts").textContent = state.accounts.length;
+  document.getElementById("statSelected").textContent = state.selectedUserIds.size;
+  document.getElementById("statRisk").textContent = state.stats?.riskLevel || "низкий";
+  document.getElementById("statMulti").textContent = state.settings["General.EnableMultiRbx"] ? "вкл" : "выкл";
+  document.getElementById("sideMulti").textContent = state.settings["General.EnableMultiRbx"] ? "включён" : "выключен";
+
+  for (const id of ["placeId", "dashPlace", "serverPlace"]) {
+    const el = document.getElementById(id);
+    if (el && !el.matches(":focus")) el.value = state.placeId || "";
+  }
+
+  for (const id of ["jobId", "dashJob"]) {
+    const el = document.getElementById(id);
+    if (el && !el.matches(":focus")) el.value = state.jobId || "";
+  }
+
+  renderAccounts();
+  renderSettings();
+}
+
+function renderAccounts() {
+  const box = document.getElementById("accountsList");
+  const q = (document.getElementById("accountSearch")?.value || "").toLowerCase();
+  const list = state.accounts.filter(a => [a.username, a.alias, a.description, a.group, String(a.userId)].join(" ").toLowerCase().includes(q));
+  box.innerHTML = "";
+  box.classList.toggle("empty", !list.length);
+  if (!list.length) { box.textContent = "Аккаунтов пока нет"; return; }
+
+  for (const a of list) {
+    const id = Number(a.userId);
+    const selected = state.selectedUserIds.has(id) || a.selected;
+    const card = document.createElement("div");
+    card.className = "account-card" + (selected ? " selected" : "");
+    card.innerHTML = `<div class="account-name">${esc(a.username || "unknown")}</div>
+      <div class="account-meta">${esc(a.alias || "Без псевдонима")} · ${esc(a.group || "Default")}</div>
+      <div class="account-desc">${esc(a.description || "Нет описания")}</div>
+      <div class="account-meta">UserId: ${a.userId || ""} · ${esc(a.lastUse || "не запускался")}</div>`;
+    card.onclick = () => {
+      if (state.selectedUserIds.has(id)) state.selectedUserIds.delete(id);
+      else state.selectedUserIds.add(id);
+      if (!state.selectedUserIds.size) state.selectedUserIds.add(id);
+      send("selectAccounts", { userIds: [...state.selectedUserIds] });
+      renderAccounts();
+    };
+    box.appendChild(card);
+  }
+}
+
+function renderSettings() {
+  const root = document.getElementById("settingsGrid");
+  if (!root || root.dataset.ready) {
+    for (const input of document.querySelectorAll("[data-setting-key]")) {
+      const full = `${input.dataset.section}.${input.dataset.settingKey}`;
+      if (!(full in state.settings)) continue;
+      if (input.type === "checkbox") input.checked = !!state.settings[full];
+      else if (!input.matches(":focus")) input.value = state.settings[full] ?? "";
+    }
+    return;
+  }
+
+  root.innerHTML = "";
+  root.dataset.ready = "1";
+
+  for (const group of settingsSchema) {
+    const box = document.createElement("div");
+    box.className = "setting-group";
+    box.innerHTML = `<h2>${group.title}</h2>`;
+
+    for (const [section, key, type, title, desc] of group.items) {
+      const row = document.createElement("div");
+      row.className = "setting" + (type.includes("danger") ? " danger-zone" : "");
+      const full = `${section}.${key}`;
+      const inputType = type.includes("bool") ? "checkbox" : type === "password" ? "password" : type === "number" ? "number" : "text";
+      row.innerHTML = `<div><div class="setting-title">${title}</div><div class="setting-desc">${desc}</div></div>
+        <input type="${inputType}" data-section="${section}" data-setting-key="${key}">`;
+      box.appendChild(row);
+    }
+
+    root.appendChild(box);
+  }
+
+  renderSettings();
+}
+
+function renderServers(servers = []) {
+  const box = document.getElementById("serversList");
+  box.innerHTML = "";
+  box.classList.toggle("empty", !servers.length);
+  if (!servers.length) { box.textContent = "Серверы не найдены"; return; }
+
+  for (const s of servers) {
+    const card = document.createElement("div");
+    card.className = "server-card";
+    card.innerHTML = `<div class="server-name">${s.playing}/${s.maxPlayers} игроков</div>
+      <div class="server-meta">Ping: ${s.ping ?? "-"} · FPS: ${s.fps ?? "-"}</div>
+      <div class="server-meta">Job ID: ${esc(s.id)}</div>
+      <button class="btn primary wide">Войти на сервер</button>`;
+    card.querySelector("button").onclick = e => {
+      e.stopPropagation();
+      send("joinServer", { placeId: document.getElementById("serverPlace").value, jobId: s.id });
+    };
+    box.appendChild(card);
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>'"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" }[m]));
+}
+
+function runAction(action) {
+  if (!action) return;
+
+  if (action === "selectAll") {
+    state.selectedUserIds = new Set(state.accounts.map(a => Number(a.userId)));
+    send("selectAccounts", { userIds: [...state.selectedUserIds] });
+    renderAccounts();
+    return;
+  }
+
+  if (action === "launch" || action === "launchDash") {
+    send("selectAccounts", { userIds: [...state.selectedUserIds] });
+    send("launch", {
+      placeId: document.getElementById(action === "launch" ? "placeId" : "dashPlace").value,
+      jobId: document.getElementById(action === "launch" ? "jobId" : "dashJob").value
+    });
+    return;
+  }
+
+  if (action === "launchAll" || action === "launchAllDash") {
+    send("launchAll", {
+      placeId: document.getElementById(action === "launchAll" ? "placeId" : "dashPlace").value,
+      jobId: document.getElementById(action === "launchAll" ? "jobId" : "dashJob").value
+    });
+    return;
+  }
+
+  if (action === "loadServers") {
+    send("loadServers", { placeId: document.getElementById("serverPlace").value });
+    toast("Загружаю серверы");
+    return;
+  }
+
+  if (action === "toggleSound") {
+    localStorage.setItem("aksoSound", localStorage.getItem("aksoSound") === "off" ? "on" : "off");
+    toast("Звук переключён");
+    return;
+  }
+
+  send(action);
+}
+
+document.addEventListener("click", e => {
+  const nav = e.target.closest("[data-page]");
+  if (nav) { showPage(nav.dataset.page); return; }
+
+  const shortcut = e.target.closest("[data-page-shortcut]");
+  if (shortcut) {
+    showPage(shortcut.dataset.pageShortcut);
+    if (shortcut.dataset.moreTab) showMoreTab(shortcut.dataset.moreTab);
+    return;
+  }
+
+  const more = e.target.closest("[data-more]");
+  if (more) { showMoreTab(more.dataset.more); return; }
+
+  const theme = e.target.closest("[data-theme]");
+  if (theme) {
+    document.body.dataset.theme = theme.dataset.theme;
+    localStorage.setItem("aksoTheme", theme.dataset.theme);
+    send("applyTheme", { theme: theme.dataset.theme });
+    toast("Тема применена");
+    return;
+  }
+
+  const action = e.target.closest("[data-action]");
+  if (action) runAction(action.dataset.action);
+});
+
+document.addEventListener("change", e => {
+  const input = e.target.closest("[data-setting-key]");
+  if (!input) return;
+  send("updateSetting", {
+    section: input.dataset.section,
+    key: input.dataset.settingKey,
+    value: input.type === "checkbox" ? input.checked : input.value
+  });
+});
+
+document.getElementById("accountSearch")?.addEventListener("input", renderAccounts);
+
+window.chrome?.webview?.addEventListener("message", e => {
+  const m = e.data;
+  if (m.type === "state") {
+    state.accounts = m.accounts || [];
+    state.stats = m.stats || {};
+    state.settings = m.settings || {};
+    state.placeId = m.placeId || "";
+    state.jobId = m.jobId || "";
+    const selected = state.accounts.filter(a => a.selected).map(a => Number(a.userId));
+    if (selected.length) state.selectedUserIds = new Set(selected);
+    render();
+  }
+  if (m.type === "servers") renderServers(m.servers || []);
+  if (m.type === "toast") toast(m.text);
+});
+
+document.body.dataset.theme = localStorage.getItem("aksoTheme") || "blue";
+showPage(localStorage.getItem("aksoPage") || "home");
+showMoreTab(localStorage.getItem("aksoMoreTab") || "settings");
+send("ready");

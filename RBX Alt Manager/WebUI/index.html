@@ -1,0 +1,177 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>akso alt</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">A</div>
+        <div>
+          <div class="brand-name">akso alt</div>
+          <div class="brand-desc">account manager</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-page="home">Главная</button>
+        <button class="nav-btn" data-page="accounts">Аккаунты</button>
+        <button class="nav-btn" data-page="launch">Запуск</button>
+        <button class="nav-btn" data-page="more">Прочее</button>
+      </nav>
+
+      <div class="side-card">
+        <b>Multi Roblox</b>
+        <span id="sideMulti">проверка...</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="top">
+        <div>
+          <h1 id="pageTitle">Главная</h1>
+          <p id="pageSub">Обзор аккаунтов, запуска и настроек</p>
+        </div>
+        <div class="top-buttons">
+          <button class="btn secondary" data-action="refresh">Обновить</button>
+          <button class="btn secondary" data-page-shortcut="more" data-more-tab="settings">Настройки</button>
+          <button class="btn primary" data-page-shortcut="launch">Запуск</button>
+        </div>
+      </header>
+
+      <section class="page active" id="home">
+        <div class="stats">
+          <div class="stat"><span>Аккаунтов</span><b id="statAccounts">0</b></div>
+          <div class="stat"><span>Выбрано</span><b id="statSelected">0</b></div>
+          <div class="stat"><span>Multi Roblox</span><b id="statMulti">выкл</b></div>
+          <div class="stat"><span>Риск</span><b id="statRisk">низкий</b></div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <h2>Быстрый запуск</h2>
+            <label>Place ID</label>
+            <input id="dashPlace" placeholder="Например 5315046213">
+            <label>Job ID / VIP ссылка</label>
+            <input id="dashJob" placeholder="Необязательно">
+            <div class="row">
+              <button class="btn primary" data-action="launchDash">Запустить выбранные</button>
+              <button class="btn secondary" data-action="launchAllDash">Запустить все</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Рекомендации</h2>
+            <p class="muted">Для запуска нескольких аккаунтов включи Multi Roblox, закрой Roblox и перезапусти менеджер.</p>
+            <button class="btn secondary wide" data-page-shortcut="more" data-more-tab="settings">Открыть настройки</button>
+            <button class="btn danger wide" data-page-shortcut="more" data-more-tab="security">Безопасность</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="accounts">
+        <div class="card full">
+          <div class="toolbar">
+            <input id="accountSearch" class="search" placeholder="Поиск аккаунтов">
+            <button class="btn primary" data-action="addAccount">Добавить</button>
+            <button class="btn secondary" data-action="openBrowser">Браузер</button>
+            <button class="btn secondary" data-action="utilities">Утилиты</button>
+            <button class="btn secondary" data-action="selectAll">Выбрать все</button>
+            <button class="btn danger" data-action="removeAccount">Удалить</button>
+          </div>
+          <p class="muted compact">Клик по карточке выбирает аккаунт. Можно выбрать несколько.</p>
+          <div id="accountsList" class="cards empty">Аккаунтов пока нет</div>
+        </div>
+      </section>
+
+      <section class="page" id="launch">
+        <div class="card narrow">
+          <h2>Запуск Roblox</h2>
+          <label>Place ID / ссылка на игру</label>
+          <input id="placeId" placeholder="ID игры или ссылка">
+          <label>Job ID / VIP ссылка</label>
+          <input id="jobId" placeholder="Необязательно">
+          <div class="row">
+            <button class="btn primary" data-action="launch">Запустить выбранные</button>
+            <button class="btn secondary" data-action="launchAll">Запустить все</button>
+            <button class="btn secondary" data-action="saveServer">Сохранить сервер</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="more">
+        <div class="more-tabs">
+          <button class="more-tab active" data-more="servers">Игры и серверы</button>
+          <button class="more-tab" data-more="settings">Настройки</button>
+          <button class="more-tab" data-more="security">Безопасность / Backup</button>
+          <button class="more-tab" data-more="theme">Тема</button>
+          <button class="more-tab" data-more="advanced">Расширенное</button>
+        </div>
+
+        <div class="more-panel active" id="more-servers">
+          <div class="card full">
+            <div class="toolbar">
+              <input id="serverPlace" class="search" placeholder="Place ID для загрузки серверов">
+              <button class="btn primary" data-action="loadServers">Загрузить серверы</button>
+            </div>
+            <div id="serversList" class="cards empty">Введите Place ID и нажмите загрузить</div>
+          </div>
+        </div>
+
+        <div class="more-panel" id="more-settings">
+          <div id="settingsGrid" class="settings-grid"></div>
+        </div>
+
+        <div class="more-panel" id="more-security">
+          <div class="grid two">
+            <div class="card">
+              <h2>Проверка рисков</h2>
+              <p class="muted">Проверяет WebServer, GetCookie, внешние подключения и сохранение паролей.</p>
+              <button class="btn danger wide" data-action="securityAudit">Проверить риски</button>
+            </div>
+            <div class="card">
+              <h2>Backup</h2>
+              <p class="muted">Создаёт копию AccountData.json.</p>
+              <button class="btn primary wide" data-action="backup">Создать backup</button>
+              <button class="btn secondary wide" data-action="exportSettings">Экспорт настроек</button>
+              <button class="btn secondary wide" data-action="clearClipboard">Очистить буфер</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="more-panel" id="more-theme">
+          <div class="grid three">
+            <button class="theme blue" data-theme="blue">Blue Night</button>
+            <button class="theme violet" data-theme="violet">Violet</button>
+            <button class="theme green" data-theme="green">Emerald</button>
+            <button class="theme glass" data-theme="glass">Glass</button>
+            <button class="theme mono" data-theme="mono">Mono</button>
+          </div>
+        </div>
+
+        <div class="more-panel" id="more-advanced">
+          <div class="grid two">
+            <div class="card">
+              <h2>Обычному пользователю не нужно</h2>
+              <p class="muted">Nexus и старые окна спрятаны, чтобы не мешать. Если понадобится — можно вернуть отдельно.</p>
+            </div>
+            <div class="card">
+              <h2>Сервис</h2>
+              <button class="btn secondary wide" data-action="refresh">Обновить UI</button>
+              <button class="btn secondary wide" data-action="toggleSound">Звук вкл/выкл</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

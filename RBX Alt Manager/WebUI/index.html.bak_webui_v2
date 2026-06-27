@@ -1,0 +1,181 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>akso alt</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">A</div>
+        <div>
+          <div class="brand-title">akso alt</div>
+          <div class="brand-subtitle">account manager</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-page="dashboard">Главная</button>
+        <button class="nav-item" data-page="accounts">Аккаунты</button>
+        <button class="nav-item" data-page="launch">Запуск</button>
+        <button class="nav-item" data-page="servers">Игры и серверы</button>
+        <button class="nav-item" data-page="settings">Настройки</button>
+        <button class="nav-item" data-page="themes">Тема</button>
+        <button class="nav-item" data-page="security">Безопасность</button>
+      </nav>
+
+      <div class="sidebar-note">
+        Выбирай аккаунты кликом по карточкам. Несколько выбранных аккаунтов запускаются вместе.
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Главная</h1>
+          <p id="pageSubtitle">Обзор аккаунтов, запуска и безопасности</p>
+        </div>
+        <div class="top-actions">
+          <button class="ghost" data-action="refresh">Обновить</button>
+          <button class="ghost" data-page-shortcut="settings">Настройки</button>
+          <button class="primary" data-page-shortcut="launch">Запуск</button>
+        </div>
+      </header>
+
+      <section class="page active" id="dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><span>Аккаунтов</span><strong id="statAccounts">0</strong></div>
+          <div class="stat-card"><span>Выбрано</span><strong id="statSelected">0</strong></div>
+          <div class="stat-card"><span>Риск</span><strong id="statRisk">низкий</strong></div>
+          <div class="stat-card"><span>WebServer</span><strong id="statWeb">выкл</strong></div>
+        </div>
+
+        <div class="grid two">
+          <div class="panel">
+            <h2>Быстрый запуск</h2>
+            <label>Place ID</label>
+            <input id="dashPlace" placeholder="Например 5315046213">
+            <label>Job ID / VIP ссылка</label>
+            <input id="dashJob" placeholder="Необязательно">
+            <div class="button-row">
+              <button class="primary" data-action="launchDash">Запустить выбранные</button>
+              <button class="ghost" data-action="launchAllDash">Запустить все</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Состояние</h2>
+            <p class="muted">Здесь отображается состояние менеджера, риск настроек и быстрые действия.</p>
+            <button class="danger wide" data-action="securityAudit">Проверить риски</button>
+            <button class="ghost wide" data-action="backup">Backup AccountData</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="accounts">
+        <div class="panel fill">
+          <div class="toolbar">
+            <input id="accountSearch" class="search" placeholder="Поиск по username, alias, группе или описанию">
+            <button class="primary" data-action="addAccount">Добавить</button>
+            <button class="ghost" data-action="openBrowser">Браузер</button>
+            <button class="ghost" data-action="utilities">Утилиты</button>
+            <button class="danger" data-action="removeAccount">Удалить</button>
+          </div>
+          <p class="muted compact">Клик по карточке выбирает или снимает выбор. Можно выбрать несколько аккаунтов.</p>
+          <div id="accountsList" class="accounts-list empty">Аккаунтов пока нет</div>
+        </div>
+      </section>
+
+      <section class="page" id="launch">
+        <div class="panel narrow">
+          <h2>Запуск Roblox</h2>
+          <label>Place ID / ссылка на игру</label>
+          <input id="placeId" placeholder="ID игры или ссылка">
+          <label>Job ID / VIP ссылка</label>
+          <input id="jobId" placeholder="Необязательно">
+          <div class="button-row">
+            <button class="primary" data-action="launch">Запустить выбранные</button>
+            <button class="ghost" data-action="launchAll">Запустить все</button>
+            <button class="ghost" data-action="saveServer">Сохранить</button>
+          </div>
+          <p class="hint">Place ID — ID игры. Job ID — ID конкретного сервера.</p>
+        </div>
+      </section>
+
+      <section class="page" id="servers">
+        <div class="panel fill">
+          <div class="toolbar">
+            <input id="serverPlace" class="search" placeholder="Place ID для загрузки серверов">
+            <button class="primary" data-action="loadServers">Загрузить серверы</button>
+          </div>
+          <div id="serversList" class="servers-list empty">Введите Place ID и нажмите «Загрузить серверы»</div>
+        </div>
+      </section>
+
+      <section class="page" id="settings">
+        <div class="grid two">
+          <div class="panel">
+            <h2>Основное</h2>
+            <label class="switch-row"><span>Сохранять пароли</span><input type="checkbox" data-setting-section="General" data-setting-key="SavePasswords"></label>
+            <label class="switch-row"><span>Автообновление cookies</span><input type="checkbox" data-setting-section="General" data-setting-key="AutoCookieRefresh"></label>
+            <label class="switch-row"><span>Показывать presence</span><input type="checkbox" data-setting-section="General" data-setting-key="ShowPresence"></label>
+            <label class="switch-row"><span>Unlock FPS</span><input type="checkbox" data-setting-section="General" data-setting-key="UnlockFPS"></label>
+          </div>
+
+          <div class="panel">
+            <h2>Разработчик / API</h2>
+            <label class="switch-row"><span>Developer Mode</span><input type="checkbox" data-setting-section="Developer" data-setting-key="DevMode"></label>
+            <label class="switch-row"><span>WebServer</span><input type="checkbox" data-setting-section="Developer" data-setting-key="EnableWebServer"></label>
+            <label class="switch-row danger-text"><span>Разрешить GetCookie</span><input type="checkbox" data-setting-section="WebServer" data-setting-key="AllowGetCookie"></label>
+            <label class="switch-row danger-text"><span>Внешние подключения</span><input type="checkbox" data-setting-section="WebServer" data-setting-key="AllowExternalConnections"></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="themes">
+        <div class="grid three">
+          <button class="theme-card blue" data-theme="blue">Blue Night</button>
+          <button class="theme-card violet" data-theme="violet">Violet</button>
+          <button class="theme-card green" data-theme="green">Emerald</button>
+        </div>
+        <div class="panel top-space">
+          <h2>Тема интерфейса</h2>
+          <p class="muted">Эта тема меняет HTML-интерфейс. Старые служебные окна больше не используются как основной UI.</p>
+        </div>
+      </section>
+
+      <section class="page" id="security">
+        <div class="grid two">
+          <div class="panel">
+            <h2>Проверка рисков</h2>
+            <p class="muted">Проверяет сохранение паролей, WebServer, GetCookie и внешние подключения.</p>
+            <button class="danger wide" data-action="securityAudit">Проверить</button>
+          </div>
+          <div class="panel">
+            <h2>Backup</h2>
+            <p class="muted">Создаёт копию AccountData.json.</p>
+            <button class="primary wide" data-action="backup">Создать backup</button>
+          </div>
+          <div class="panel">
+            <h2>Буфер обмена</h2>
+            <p class="muted">Очищай буфер после копирования паролей или токенов.</p>
+            <button class="ghost wide" data-action="clearClipboard">Очистить буфер</button>
+          </div>
+          <div class="panel">
+            <h2>Экспорт</h2>
+            <p class="muted">Экспорт настроек без аккаунтов и cookies.</p>
+            <button class="ghost wide" data-action="exportSettings">Экспортировать</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
