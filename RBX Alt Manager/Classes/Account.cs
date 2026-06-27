@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RBX_Alt_Manager.Classes;
 using RBX_Alt_Manager.Forms;
@@ -113,21 +113,87 @@ namespace RBX_Alt_Manager
         {
             Ticket = string.Empty;
 
-            if (!GetCSRFToken(out string Token)) return false;
-
-            RestRequest request = MakeRequest("/v1/authentication-ticket/", Method.Post).AddHeader("X-CSRF-TOKEN", Token).AddHeader("Referer", "https://www.roblox.com/games/4924922222/Brookhaven-RP");
-
-            RestResponse response = AccountManager.AuthClient.Execute(request);
-
-            Parameter TicketHeader = response.Headers.FirstOrDefault(x => x.Name == "rbx-authentication-ticket");
-
-            if (TicketHeader != null)
+            if (!GetCSRFToken(out string Token))
             {
-                Ticket = (string)TicketHeader.Value;
-
-                return true;
+                Ticket = "Не удалось получить CSRF token: " + Token;
+                return false;
             }
 
+            string lastError = string.Empty;
+            string[] endpoints = new[]
+            {
+                "v1/authentication-ticket",
+                "v1/authentication-ticket/",
+                "/v1/authentication-ticket",
+                "/v1/authentication-ticket/"
+            };
+
+            foreach (string endpoint in endpoints)
+            {
+                try
+                {
+                    RestRequest request = MakeRequest(endpoint, Method.Post)
+                        .AddHeader("X-CSRF-TOKEN", Token)
+                        .AddHeader("Referer", "https://www.roblox.com/")
+                        .AddHeader("Origin", "https://www.roblox.com")
+                        .AddHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                        .AddHeader("Content-Type", "application/json");
+
+                    request.AddStringBody("{}", DataFormat.Json);
+
+                    RestResponse response = AccountManager.AuthClient.Execute(request);
+
+                    Parameter ticketHeader = response.Headers.FirstOrDefault(x =>
+                        string.Equals(x.Name, "rbx-authentication-ticket", StringComparison.OrdinalIgnoreCase));
+
+                    if (ticketHeader != null && ticketHeader.Value != null)
+                    {
+                        Ticket = ticketHeader.Value.ToString();
+                        return !string.IsNullOrWhiteSpace(Ticket);
+                    }
+
+                    Parameter csrfHeader = response.Headers.FirstOrDefault(x =>
+                        string.Equals(x.Name, "x-csrf-token", StringComparison.OrdinalIgnoreCase));
+
+                    if (csrfHeader != null && csrfHeader.Value != null)
+                    {
+                        Token = csrfHeader.Value.ToString();
+
+                        RestRequest retry = MakeRequest(endpoint, Method.Post)
+                            .AddHeader("X-CSRF-TOKEN", Token)
+                            .AddHeader("Referer", "https://www.roblox.com/")
+                            .AddHeader("Origin", "https://www.roblox.com")
+                            .AddHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                        .AddHeader("Content-Type", "application/json");
+
+                    request.AddStringBody("{}", DataFormat.Json);
+
+                        RestResponse retryResponse = AccountManager.AuthClient.Execute(retry);
+
+                        Parameter retryTicketHeader = retryResponse.Headers.FirstOrDefault(x =>
+                            string.Equals(x.Name, "rbx-authentication-ticket", StringComparison.OrdinalIgnoreCase));
+
+                        if (retryTicketHeader != null && retryTicketHeader.Value != null)
+                        {
+                            Ticket = retryTicketHeader.Value.ToString();
+                            return !string.IsNullOrWhiteSpace(Ticket);
+                        }
+
+                        lastError = $"Retry {endpoint}: {(int)retryResponse.StatusCode} {retryResponse.StatusCode} {retryResponse.Content}";
+                    }
+                    else
+                    {
+                        lastError = $"{endpoint}: {(int)response.StatusCode} {response.StatusCode} {response.Content}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastError = endpoint + ": " + ex.Message;
+                }
+            }
+
+            Ticket = lastError;
+            Program.Logger.Error("GetAuthTicket failed for " + Username + ": " + lastError);
             return false;
         }
 
@@ -143,7 +209,7 @@ namespace RBX_Alt_Manager
                 return false;
             }
 
-            Parameter result = response.Headers.FirstOrDefault(x => x.Name == "x-csrf-token");
+            Parameter result = response.Headers.FirstOrDefault(x => string.Equals(x.Name, "x-csrf-token", StringComparison.OrdinalIgnoreCase));
 
             string Token = string.Empty;
 
@@ -502,6 +568,31 @@ namespace RBX_Alt_Manager
             return false;
         }
 
+
+        private static string FindRobloxPlayerExecutable()
+        {
+            string localVersions = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Roblox", "Versions");
+            string programVersions = @"C:\Program Files (x86)\Roblox\Versions";
+
+            foreach (string root in new[] { localVersions, programVersions })
+            {
+                try
+                {
+                    if (!Directory.Exists(root)) continue;
+
+                    foreach (string dir in Directory.GetDirectories(root, "version-*").OrderByDescending(x => Directory.GetLastWriteTimeUtc(x)))
+                    {
+                        string exe = Path.Combine(dir, "RobloxPlayerBeta.exe");
+
+                        if (File.Exists(exe))
+                            return exe;
+                    }
+                }
+                catch { }
+            }
+
+            return null;
+        }
         public async Task<string> JoinServer(long PlaceID, string JobID = "", bool FollowUser = false, bool JoinVIP = false, bool Internal = false) // oh god i am not refactoring everything to be async im sorry
         {
             if (string.IsNullOrEmpty(BrowserTrackerID))
@@ -610,71 +701,67 @@ namespace RBX_Alt_Manager
 
                 double LaunchTime = Math.Floor((DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds * 1000);
 
-                if (AccountManager.UseOldJoin)
+                string launchUrl;
+
+                if (JoinVIP)
+                    launchUrl = $"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestPrivateGame&placeId={PlaceID}&accessCode={AccessCode}&linkCode={LinkCode}";
+                else if (FollowUser)
+                    launchUrl = $"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestFollowUser&userId={PlaceID}";
+                else
+                    launchUrl = $"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestGame{(string.IsNullOrEmpty(JobID) ? "" : "Job")}&placeId={PlaceID}{(string.IsNullOrEmpty(JobID) ? "" : ("&gameId=" + JobID))}&isPlayTogetherGame=false{(AccountManager.IsTeleport ? "&isTeleport=true" : "")}";
+
+                string robloxExe = FindRobloxPlayerExecutable();
+
+                if (string.IsNullOrEmpty(robloxExe))
                 {
-                    string RPath = @"C:\Program Files (x86)\Roblox\Versions\" + AccountManager.CurrentVersion;
+                    try
+                    {
+                        ProcessStartInfo fallback = new ProcessStartInfo
+                        {
+                            UseShellExecute = true
+                        };
 
-                    if (!Directory.Exists(RPath))
-                        RPath = Path.Combine(Environment.GetEnvironmentVariable("LocalAppData"), @"Roblox\Versions\" + AccountManager.CurrentVersion);
+                        if (JoinVIP)
+                            fallback.FileName = $"roblox-player:1+launchmode:play+gameinfo:{Ticket}+launchtime:{LaunchTime}+placelauncherurl:{HttpUtility.UrlEncode(launchUrl)}+browsertrackerid:{BrowserTrackerID}+robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp";
+                        else if (FollowUser)
+                            fallback.FileName = $"roblox-player:1+launchmode:play+gameinfo:{Ticket}+launchtime:{LaunchTime}+placelauncherurl:{HttpUtility.UrlEncode(launchUrl)}+browsertrackerid:{BrowserTrackerID}+robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp";
+                        else
+                            fallback.FileName = $"roblox-player:1+launchmode:play+gameinfo:{Ticket}+launchtime:{LaunchTime}+placelauncherurl:{HttpUtility.UrlEncode(launchUrl)}+browsertrackerid:{BrowserTrackerID}+robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp";
 
-                    if (!Directory.Exists(RPath))
-                        return "ERROR: Failed to find ROBLOX executable";
+                        Process.Start(fallback);
+                        AccountManager.Instance.NextAccount();
+                        _ = Task.Run(AdjustWindowPosition);
 
-                    RPath += @"\RobloxPlayerBeta.exe";
+                        return "Success";
+                    }
+                    catch (Exception ex)
+                    {
+                        return "ERROR: RobloxPlayerBeta.exe не найден и roblox-player protocol не запустился. Переустанови Roblox.\n\n" + ex.Message;
+                    }
+                }
+
+                try
+                {
+                    ProcessStartInfo roblox = new ProcessStartInfo(robloxExe)
+                    {
+                        UseShellExecute = false,
+                        Arguments = $"--app -t {Ticket} -j \"{launchUrl}\""
+                    };
+
+                    Process.Start(roblox);
 
                     AccountManager.Instance.NextAccount();
-
-                    await Task.Run(() =>
-                    {
-                        ProcessStartInfo Roblox = new ProcessStartInfo(RPath);
-                        
-                        if (JoinVIP)
-                            Roblox.Arguments = string.Format("--app -t {0} -j \"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestPrivateGame&placeId={1}&accessCode={2}&linkCode={3}\"", Ticket, PlaceID, AccessCode, LinkCode);
-                        else if (FollowUser)
-                            Roblox.Arguments = string.Format("--app -t {0} -j \"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestFollowUser&userId={1}\"", Ticket, PlaceID);
-                        else
-                            Roblox.Arguments = string.Format("--app -t {0} -j \"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestGame{3}&placeId={1}{2}&isPlayTogetherGame=false\"", Ticket, PlaceID, "&gameId=" + JobID, string.IsNullOrEmpty(JobID) ? "" : "Job");
-                    });
-
                     _ = Task.Run(AdjustWindowPosition);
 
                     return "Success";
                 }
-                else
+                catch (Exception ex)
                 {
-                    await Task.Run(() => // prevents roblox launcher hanging our main process
-                    {
-                        try
-                        {
-                            ProcessStartInfo LaunchInfo = new ProcessStartInfo();
-
-                            if (JoinVIP)
-                                LaunchInfo.FileName = $"roblox-player:1+launchmode:play+gameinfo:{Ticket}+launchtime:{LaunchTime}+placelauncherurl:{HttpUtility.UrlEncode($"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestPrivateGame&placeId={PlaceID}&accessCode={AccessCode}&linkCode={LinkCode}")}+browsertrackerid:{BrowserTrackerID}+robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp";
-                            else if (FollowUser)
-                                LaunchInfo.FileName = $"roblox-player:1+launchmode:play+gameinfo:{Ticket}+launchtime:{LaunchTime}+placelauncherurl:{HttpUtility.UrlEncode($"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestFollowUser&userId={PlaceID}")}+browsertrackerid:{BrowserTrackerID}+robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp";
-                            else
-                                LaunchInfo.FileName = $"roblox-player:1+launchmode:play+gameinfo:{Ticket}+launchtime:{LaunchTime}+placelauncherurl:{HttpUtility.UrlEncode($"https://assetgame.roblox.com/game/PlaceLauncher.ashx?request=RequestGame{(string.IsNullOrEmpty(JobID) ? "" : "Job")}&browserTrackerId={BrowserTrackerID}&placeId={PlaceID}{(string.IsNullOrEmpty(JobID) ? "" : ("&gameId=" + JobID))}&isPlayTogetherGame=false{(AccountManager.IsTeleport ? "&isTeleport=true" : "")}")}+browsertrackerid:{BrowserTrackerID}+robloxLocale:en_us+gameLocale:en_us+channel:+LaunchExp:InApp";
-                            Process Launcher = Process.Start(LaunchInfo);
-                            
-                            Launcher.WaitForExit();
-
-                            AccountManager.Instance.NextAccount();
-
-                            _ = Task.Run(AdjustWindowPosition);
-                        }
-                        catch (Exception x)
-                        {
-                            Utilities.InvokeIfRequired(AccountManager.Instance, () => MessageBox.Show($"ОШИБКА: не удалось запустить Roblox! Попробуй переустановить Roblox.\n\n{x.Message}{x.StackTrace}", RussianLocalization.AppName, MessageBoxButtons.OK, MessageBoxIcon.Error));
-                            AccountManager.Instance.CancelLaunching();
-                            AccountManager.Instance.NextAccount();
-                        }
-                    });
-
-                    return "Success";
+                    return "ERROR: не удалось запустить Roblox напрямую.\n\n" + ex.Message;
                 }
             }
             else
-                return "ERROR: Invalid Authentication Ticket, re-add the account or try again\n(Failed to get Authentication Ticket, Roblox has probably signed you out)";
+                return $"ERROR: Invalid Authentication Ticket. Roblox не выдал ticket.\nДетали: {Ticket}\nЕсли браузер аккаунта уже залогинен — попробуй ещё раз через 10 секунд или перелогинь аккаунт.";
         }
 
         public async void AdjustWindowPosition()

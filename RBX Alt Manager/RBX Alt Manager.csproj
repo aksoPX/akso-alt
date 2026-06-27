@@ -411,6 +411,7 @@
     <Compile Include="Classes\RobloxWatcher.cs" />
     <Compile Include="Classes\AksoAnimatedHeaderPanel.cs" />
     <Compile Include="Classes\AksoStyle.cs" />
+    <Compile Include="Classes\AksoWebBrowserForm.cs" />
     <Compile Include="Classes\RussianLocalization.cs" />
     <Compile Include="Classes\Utilities.cs" />
     <Compile Include="Classes\WM.cs" />

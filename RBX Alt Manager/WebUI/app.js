@@ -1,4 +1,49 @@
-﻿const state = {
+﻿
+function getSelectedAccounts() {
+  return state.accounts.filter(a => state.selectedUserIds.has(Number(a.userId)) || a.selected);
+}
+
+function openUtilitiesModal() {
+  const selected = getSelectedAccounts();
+  const modal = document.getElementById("utilitiesModal");
+
+  if (!modal) return;
+
+  const name = selected.length
+    ? `${selected[0].username || "аккаунт"}${selected.length > 1 ? ` + ещё ${selected.length - 1}` : ""}`
+    : "Аккаунт не выбран";
+
+  document.getElementById("utilitiesAccountName").textContent = name;
+  modal.classList.remove("hidden");
+}
+
+function closeUtilitiesModal() {
+  document.getElementById("utilitiesModal")?.classList.add("hidden");
+}
+
+function sendUtility(action) {
+  const selected = getSelectedAccounts();
+
+  if (!selected.length) {
+    toast("Выберите аккаунт");
+    return;
+  }
+
+  const payload = {
+    userIds: selected.map(x => Number(x.userId)),
+    privacy: Number(document.getElementById("utilFollowPrivacy")?.value || 0),
+    pin: document.getElementById("utilPin")?.value || "",
+    displayName: document.getElementById("utilDisplayName")?.value || "",
+    targetUsername: document.getElementById("utilTargetUsername")?.value || "",
+    currentPassword: document.getElementById("utilCurrentPassword")?.value || "",
+    newPassword: document.getElementById("utilNewPassword")?.value || "",
+    emailPassword: document.getElementById("utilEmailPassword")?.value || "",
+    newEmail: document.getElementById("utilNewEmail")?.value || ""
+  };
+
+  send(action, payload);
+}
+const state = {
   accounts: [],
   selectedUserIds: new Set(),
   settings: {},
@@ -119,9 +164,18 @@ function send(action, data = {}) {
 
 function toast(text) {
   const el = document.getElementById("toast");
-  el.textContent = text;
+  const msg = String(text || "");
+  const isError = msg.toLowerCase().includes("error") || msg.toLowerCase().includes("ошибка") || msg.toLowerCase().includes("invalid") || msg.length > 120;
+
+  el.textContent = msg;
+  el.classList.toggle("error", isError);
   el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 2400);
+
+  clearTimeout(window.__aksoToastTimer);
+  window.__aksoToastTimer = setTimeout(() => {
+    el.classList.remove("show");
+    el.classList.remove("error");
+  }, isError ? 12000 : 4000);
 }
 
 function showPage(id) {
@@ -252,6 +306,21 @@ function esc(s) {
 function runAction(action) {
   if (!action) return;
 
+  if (action === "utilities") {
+    openUtilitiesModal();
+    return;
+  }
+
+  if (action === "closeUtilities") {
+    closeUtilitiesModal();
+    return;
+  }
+
+  if (action.startsWith("util")) {
+    sendUtility(action);
+    return;
+  }
+
   if (action === "selectAll") {
     state.selectedUserIds = new Set(state.accounts.map(a => Number(a.userId)));
     send("selectAccounts", { userIds: [...state.selectedUserIds] });
@@ -263,7 +332,8 @@ function runAction(action) {
     send("selectAccounts", { userIds: [...state.selectedUserIds] });
     send("launch", {
       placeId: document.getElementById(action === "launch" ? "placeId" : "dashPlace").value,
-      jobId: document.getElementById(action === "launch" ? "jobId" : "dashJob").value
+      jobId: document.getElementById(action === "launch" ? "jobId" : "dashJob").value,
+      userIds: [...state.selectedUserIds]
     });
     return;
   }
@@ -271,7 +341,8 @@ function runAction(action) {
   if (action === "launchAll" || action === "launchAllDash") {
     send("launchAll", {
       placeId: document.getElementById(action === "launchAll" ? "placeId" : "dashPlace").value,
-      jobId: document.getElementById(action === "launchAll" ? "jobId" : "dashJob").value
+      jobId: document.getElementById(action === "launchAll" ? "jobId" : "dashJob").value,
+      userIds: state.accounts.map(a => Number(a.userId))
     });
     return;
   }
@@ -305,7 +376,7 @@ document.addEventListener("click", e => {
   const more = e.target.closest("[data-more]");
   if (more) { showMoreTab(more.dataset.more); return; }
 
-  const theme = e.target.closest("[data-theme]");
+  const theme = e.target.closest(".theme[data-theme]");
   if (theme) {
     document.body.dataset.theme = theme.dataset.theme;
     localStorage.setItem("aksoTheme", theme.dataset.theme);
@@ -314,14 +385,13 @@ document.addEventListener("click", e => {
     return;
   }
 
-  const themeButton = e.target.closest("[data-theme]");
+  const themeButton = e.target.closest(".theme[data-theme]");
   if (themeButton) {
     e.preventDefault();
     e.stopPropagation();
     document.body.dataset.theme = themeButton.dataset.theme;
     localStorage.setItem("aksoTheme", themeButton.dataset.theme);
-    send("applyTheme", { theme: themeButton.dataset.theme });
-    toast("Тема применена");
+toast("Тема применена");
     return;
   }
 
@@ -362,3 +432,172 @@ document.body.dataset.theme = localStorage.getItem("aksoTheme") || "blue";
 showPage(localStorage.getItem("aksoPage") || "home");
 showMoreTab(localStorage.getItem("aksoMoreTab") || "settings");
 send("ready");
+let aksoSavedGames = [];
+
+function postAkso(action, data = {}) {
+  window.chrome?.webview?.postMessage({ action, data });
+}
+
+function injectSavedGamesUI() {
+  const panel = document.querySelector("#more-servers .card.full") || document.querySelector("#servers .card.full") || document.querySelector("#more-servers");
+
+  if (!panel || document.getElementById("savedGamesBox")) return;
+
+  const box = document.createElement("div");
+  box.id = "savedGamesBox";
+  box.className = "saved-games-box";
+  box.innerHTML = `
+    <div class="saved-head">
+      <div>
+        <h2>Сохранённые игры / VIP</h2>
+        <p class="muted">Сохраняй Place ID, Job ID, VIP-ссылки и описание.</p>
+      </div>
+      <button class="btn secondary" data-action="getSavedGames">Обновить сохранения</button>
+    </div>
+
+    <div class="saved-form">
+      <input id="savedGameId" type="hidden">
+      <input id="savedGameTitle" placeholder="Название / метка">
+      <input id="savedGamePlace" placeholder="Place ID или ссылка на игру">
+      <input id="savedGameJob" placeholder="Job ID, если нужен">
+      <input id="savedGameVip" placeholder="VIP ссылка, если есть">
+      <textarea id="savedGameDescription" placeholder="Описание / заметка"></textarea>
+      <div class="row">
+        <button class="btn primary" data-action="addSavedGame">Сохранить</button>
+        <button class="btn secondary" data-action="clearSavedGameForm">Очистить</button>
+      </div>
+    </div>
+
+    <div id="savedGamesList" class="saved-games-list empty">Пока ничего не сохранено</div>
+  `;
+
+  panel.appendChild(box);
+}
+
+function clearSavedGameForm() {
+  for (const id of ["savedGameId", "savedGameTitle", "savedGamePlace", "savedGameJob", "savedGameVip", "savedGameDescription"]) {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  }
+}
+
+function getSavedGameForm() {
+  return {
+    id: document.getElementById("savedGameId")?.value || "",
+    title: document.getElementById("savedGameTitle")?.value || "",
+    placeId: document.getElementById("savedGamePlace")?.value || "",
+    jobId: document.getElementById("savedGameJob")?.value || "",
+    vipLink: document.getElementById("savedGameVip")?.value || "",
+    description: document.getElementById("savedGameDescription")?.value || ""
+  };
+}
+
+function setSavedGameForm(game) {
+  document.getElementById("savedGameId").value = game.id || "";
+  document.getElementById("savedGameTitle").value = game.title || "";
+  document.getElementById("savedGamePlace").value = game.placeId || "";
+  document.getElementById("savedGameJob").value = game.jobId || "";
+  document.getElementById("savedGameVip").value = game.vipLink || "";
+  document.getElementById("savedGameDescription").value = game.description || "";
+}
+
+function renderSavedGames() {
+  injectSavedGamesUI();
+
+  const list = document.getElementById("savedGamesList");
+  if (!list) return;
+
+  list.innerHTML = "";
+  list.classList.toggle("empty", !aksoSavedGames.length);
+
+  if (!aksoSavedGames.length) {
+    list.textContent = "Пока ничего не сохранено";
+    return;
+  }
+
+  for (const game of aksoSavedGames) {
+    const card = document.createElement("div");
+    card.className = "saved-game-card";
+
+    card.innerHTML = `
+      <div class="saved-title">${escapeHtml(game.title || "Без названия")}</div>
+      <div class="saved-meta">Place ID: ${escapeHtml(game.placeId || "-")}</div>
+      <div class="saved-meta">Job/VIP: ${escapeHtml(game.vipLink || game.jobId || "-")}</div>
+      <div class="saved-desc">${escapeHtml(game.description || "Нет описания")}</div>
+      <div class="saved-meta">Обновлено: ${escapeHtml(game.updatedAt || "")}</div>
+      <div class="row saved-actions">
+        <button class="btn primary" data-saved-launch="${game.id}">Запустить</button>
+        <button class="btn secondary" data-saved-fill="${game.id}">Изменить</button>
+        <button class="btn danger" data-saved-remove="${game.id}">Удалить</button>
+      </div>
+    `;
+
+    list.appendChild(card);
+  }
+}
+
+document.addEventListener("click", event => {
+  const action = event.target.closest("[data-action]")?.dataset.action;
+
+  if (action === "addSavedGame") {
+    event.preventDefault();
+    event.stopPropagation();
+    postAkso("addSavedGame", getSavedGameForm());
+    return;
+  }
+
+  if (action === "clearSavedGameForm") {
+    event.preventDefault();
+    event.stopPropagation();
+    clearSavedGameForm();
+    return;
+  }
+
+  if (action === "getSavedGames") {
+    event.preventDefault();
+    event.stopPropagation();
+    postAkso("getSavedGames");
+    return;
+  }
+
+  const launch = event.target.closest("[data-saved-launch]")?.dataset.savedLaunch;
+  if (launch) {
+    const game = aksoSavedGames.find(x => x.id === launch);
+    if (game) {
+      postAkso("launchSavedGame", {
+        placeId: game.placeId,
+        jobId: game.jobId,
+        vipLink: game.vipLink,
+        userIds: [...state.selectedUserIds]
+      });
+    }
+    return;
+  }
+
+  const fill = event.target.closest("[data-saved-fill]")?.dataset.savedFill;
+  if (fill) {
+    const game = aksoSavedGames.find(x => x.id === fill);
+    if (game) setSavedGameForm(game);
+    return;
+  }
+
+  const remove = event.target.closest("[data-saved-remove]")?.dataset.savedRemove;
+  if (remove) {
+    postAkso("removeSavedGame", { id: remove });
+    return;
+  }
+}, true);
+
+window.chrome?.webview?.addEventListener("message", event => {
+  const message = event.data;
+
+  if (message.type === "savedGames") {
+    aksoSavedGames = message.savedGames || [];
+    renderSavedGames();
+  }
+});
+
+setTimeout(() => {
+  injectSavedGamesUI();
+  postAkso("getSavedGames");
+}, 700);

@@ -151,6 +151,10 @@ namespace RBX_Alt_Manager
             if (!General.Exists("UnlockFPS")) General.Set("UnlockFPS", "false");
             if (!General.Exists("MaxFPSValue")) General.Set("MaxFPSValue", "120");
             if (!General.Exists("UseCefSharpBrowser")) General.Set("UseCefSharpBrowser", "false");
+            if (!General.Exists("UseAksoWebViewBrowser")) General.Set("UseAksoWebViewBrowser", "true");
+            General.Set("UseAksoWebViewBrowser", "true");
+            General.Set("UseCefSharpBrowser", "false");
+            General.Set("UseCefSharpBrowser", "false");
 
             if (!Developer.Exists("DevMode")) Developer.Set("DevMode", "false");
             if (!Developer.Exists("EnableWebServer")) Developer.Set("EnableWebServer", "false");
@@ -375,31 +379,15 @@ namespace RBX_Alt_Manager
                         break;
 
                     case "utilities":
-                        BrowserButton_Click(this, EventArgs.Empty);
+                        SendAksoToast("Утилиты открыты в интерфейсе");
                         break;
 
                     case "launch":
-                        if (data != null)
-                        {
-                            string place = data["placeId"]?.Value<string>();
-                            string job = data["jobId"]?.Value<string>();
-                            if (!string.IsNullOrWhiteSpace(place)) PlaceID.Text = place.Trim();
-                            JobID.Text = job?.Trim() ?? string.Empty;
-                        }
-                        JoinServer_Click(this, EventArgs.Empty);
+                        AksoLaunchFromWeb(data, false);
                         break;
 
                     case "launchAll":
-                        SelectAksoAccounts(new JArray((AccountsList ?? new List<Account>()).Select(a => a.UserID)));
-                        if (data != null)
-                        {
-                            string placeAll = data["placeId"]?.Value<string>();
-                            string jobAll = data["jobId"]?.Value<string>();
-                            if (!string.IsNullOrWhiteSpace(placeAll)) PlaceID.Text = placeAll.Trim();
-                            JobID.Text = jobAll?.Trim() ?? string.Empty;
-                        }
-                        JoinServer_Click(this, EventArgs.Empty);
-                        SendAksoWebState();
+                        AksoLaunchFromWeb(data, true);
                         break;
 
                     case "saveServer":
@@ -411,12 +399,7 @@ namespace RBX_Alt_Manager
                         break;
 
                     case "joinServer":
-                        if (data != null)
-                        {
-                            PlaceID.Text = data["placeId"]?.Value<string>() ?? PlaceID.Text;
-                            JobID.Text = data["jobId"]?.Value<string>() ?? string.Empty;
-                        }
-                        JoinServer_Click(this, EventArgs.Empty);
+                        AksoLaunchFromWeb(data, false);
                         break;
 
                     case "updateSetting":
@@ -426,9 +409,29 @@ namespace RBX_Alt_Manager
                         break;
 
                     case "applyTheme":
-                        SendAksoToast("Тема применена");
                         break;
 
+                                        case "getSavedGames":
+                        SendAksoSavedGames();
+                        break;
+
+                    case "addSavedGame":
+                        AddAksoSavedGame(data);
+                        break;
+
+                    case "removeSavedGame":
+                        RemoveAksoSavedGame(data?["id"]?.Value<string>());
+                        break;
+
+                    case "launchSavedGame":
+                        if (data != null)
+                        {
+                            string vip = data["vipLink"]?.Value<string>() ?? "";
+                            string job = data["jobId"]?.Value<string>() ?? "";
+                            data["jobId"] = !string.IsNullOrWhiteSpace(vip) ? vip : job;
+                        }
+                        AksoLaunchFromWeb(data, false);
+                        break;
                     case "backup":
                         CreateAccountDataBackup();
                         break;
@@ -513,7 +516,14 @@ namespace RBX_Alt_Manager
 
         private void SendAksoToast(string text)
         {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => SendAksoToast(text)));
+                return;
+            }
+
             if (AksoWebView?.CoreWebView2 == null) return;
+
             string json = JsonConvert.SerializeObject(new { type = "toast", text });
             AksoWebView.CoreWebView2.PostWebMessageAsJson(json);
         }
@@ -731,6 +741,330 @@ namespace RBX_Alt_Manager
             IniSettings.Save("RAMSettings.ini");
         }
 
+
+        private void AksoLaunchFromWeb(JObject data, bool allAccounts)
+        {
+            try
+            {
+                string placeText = data?["placeId"]?.Value<string>() ?? PlaceID?.Text ?? string.Empty;
+                string jobText = data?["jobId"]?.Value<string>() ?? JobID?.Text ?? string.Empty;
+
+                Match idMatch = Regex.Match(placeText, @"\/games\/(\d+)[\/|\?]?");
+
+                if (placeText.Contains("privateServerLinkCode") && idMatch.Success)
+                    jobText = placeText;
+
+                placeText = idMatch.Success ? idMatch.Groups[1].Value : Regex.Replace(placeText, "[^0-9]", "");
+
+                if (!long.TryParse(placeText, out long placeId))
+                {
+                    SendAksoToast("Введите корректный Place ID");
+                    return;
+                }
+
+                PlaceID.Text = placeText;
+                JobID.Text = jobText ?? string.Empty;
+
+                List<Account> accounts = new List<Account>();
+
+                if (allAccounts)
+                {
+                    accounts = AccountsList?.ToList() ?? new List<Account>();
+                }
+                else if (data?["userIds"] is JArray ids)
+                {
+                    foreach (JToken token in ids)
+                    {
+                        long id = token.Value<long>();
+                        Account account = AccountsList?.FirstOrDefault(x => x.UserID == id);
+                        if (account != null && !accounts.Contains(account))
+                            accounts.Add(account);
+                    }
+                }
+
+                if (accounts.Count == 0 && SelectedAccounts != null && SelectedAccounts.Count > 0)
+                    accounts = SelectedAccounts.Where(x => x != null).Distinct().ToList();
+
+                if (accounts.Count == 0 && SelectedAccount != null)
+                    accounts.Add(SelectedAccount);
+
+                if (accounts.Count == 0)
+                {
+                    SendAksoToast("Выберите аккаунт на вкладке Аккаунты");
+                    return;
+                }
+
+                SelectedAccounts = accounts;
+                SelectedAccount = accounts[0];
+                AksoSelectedUserId = SelectedAccount.UserID;
+
+                try
+                {
+                    AccountsView.DeselectAll();
+                    foreach (Account account in accounts)
+                        AccountsView.SelectObject(account, true);
+                }
+                catch { }
+
+                bool vipServer = JobID.TextLength > 4 && JobID.Text.Substring(0, 4) == "VIP:";
+                string jobId = vipServer ? JobID.Text.Substring(4) : JobID.Text;
+
+                if (accounts.Count > 1 && !General.Get<bool>("EnableMultiRbx"))
+                    SendAksoToast("Multi Roblox выключен. Для нескольких клиентов включи его в настройках и перезапусти менеджер.");
+
+                if (!PlaceTimer.Enabled)
+                    _ = Task.Run(() => AddRecentGame(new Game(placeId)));
+
+                CancelLaunching();
+
+                if (accounts.Count > 1)
+                {
+                    LauncherToken = new CancellationTokenSource();
+                    List<Account> launchList = accounts.ToList();
+
+                    SendAksoToast($"Запускаю аккаунты: {launchList.Count}");
+
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await LaunchAccounts(launchList, placeId, jobId, false, vipServer);
+                            SendAksoToast("Запуск завершён");
+                        }
+                        catch (Exception ex)
+                        {
+                            Program.Logger.Error($"AksoLaunchFromWeb multiple error: {ex}");
+                            SendAksoToast("Ошибка запуска нескольких аккаунтов");
+                        }
+                    });
+                }
+                else
+                {
+                    Account account = accounts[0];
+                    SendAksoToast($"Запускаю: {account.Username}");
+
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            string result = await account.JoinServer(placeId, jobId, false, vipServer);
+
+                            if (!result.Contains("Success"))
+                                SendAksoToast(result);
+                            else
+                                SendAksoToast("Команда запуска отправлена");
+                        }
+                        catch (Exception ex)
+                        {
+                            Program.Logger.Error($"AksoLaunchFromWeb single error: {ex}");
+                            SendAksoToast("Ошибка запуска аккаунта");
+                        }
+                    });
+                }
+
+                SendAksoWebState();
+            }
+            catch (Exception ex)
+            {
+                Program.Logger.Error($"AksoLaunchFromWeb error: {ex}");
+                SendAksoToast("Ошибка запуска из WebUI");
+            }
+        }
+
+        private List<Account> GetAksoUtilityAccounts(JObject data)
+        {
+            List<Account> result = new List<Account>();
+
+            if (data?["userIds"] is JArray ids)
+            {
+                foreach (JToken token in ids)
+                {
+                    long id = token.Value<long>();
+                    Account account = AccountsList?.FirstOrDefault(x => x.UserID == id);
+                    if (account != null && !result.Contains(account))
+                        result.Add(account);
+                }
+            }
+
+            if (result.Count == 0 && SelectedAccounts != null)
+                result.AddRange(SelectedAccounts.Where(x => x != null));
+
+            if (result.Count == 0 && SelectedAccount != null)
+                result.Add(SelectedAccount);
+
+            return result.Distinct().ToList();
+        }
+
+        private void HandleAksoUtility(string action, JObject data)
+        {
+            List<Account> accounts = GetAksoUtilityAccounts(data);
+
+            if (accounts.Count == 0)
+            {
+                SendAksoToast("Выберите аккаунт");
+                return;
+            }
+
+            try
+            {
+                foreach (Account account in accounts)
+                {
+                    switch (action)
+                    {
+                        case "utilSetFollowPrivacy":
+                            account.SetFollowPrivacy(data?["privacy"]?.Value<int>() ?? 0);
+                            break;
+
+                        case "utilUnlockPin":
+                            account.UnlockPin(data?["pin"]?.Value<string>() ?? string.Empty);
+                            break;
+
+                        case "utilLogoutOtherSessions":
+                            account.LogOutOfOtherSessions();
+                            break;
+
+                        case "utilSetDisplayName":
+                            account.SetDisplayName(data?["displayName"]?.Value<string>() ?? string.Empty);
+                            break;
+
+                        case "utilAddFriend":
+                            account.SendFriendRequest(data?["targetUsername"]?.Value<string>() ?? string.Empty);
+                            break;
+
+                        case "utilBlockUser":
+                            if (GetUserID(data?["targetUsername"]?.Value<string>() ?? string.Empty, out long blockId, out _))
+                                account.BlockUserId(blockId.ToString());
+                            break;
+
+                        case "utilUnblockUser":
+                            if (GetUserID(data?["targetUsername"]?.Value<string>() ?? string.Empty, out long unblockId, out _))
+                                account.UnblockUserId(unblockId.ToString());
+                            break;
+
+                        case "utilChangePassword":
+                            account.ChangePassword(
+                                data?["currentPassword"]?.Value<string>() ?? string.Empty,
+                                data?["newPassword"]?.Value<string>() ?? string.Empty
+                            );
+                            break;
+
+                        case "utilChangeEmail":
+                            account.ChangeEmail(
+                                data?["emailPassword"]?.Value<string>() ?? string.Empty,
+                                data?["newEmail"]?.Value<string>() ?? string.Empty
+                            );
+                            break;
+                    }
+                }
+
+                SendAksoToast("Готово");
+                SendAksoWebState();
+            }
+            catch (Exception ex)
+            {
+                Program.Logger.Error($"HandleAksoUtility error: {ex}");
+                SendAksoToast("Ошибка утилит: " + ex.Message);
+            }
+        }
+
+        private string AksoSavedGamesPath => Path.Combine(Environment.CurrentDirectory, "SavedGames.json");
+
+        private JArray LoadAksoSavedGames()
+        {
+            try
+            {
+                if (!File.Exists(AksoSavedGamesPath))
+                    return new JArray();
+
+                string json = File.ReadAllText(AksoSavedGamesPath, Encoding.UTF8);
+
+                if (string.IsNullOrWhiteSpace(json))
+                    return new JArray();
+
+                return JArray.Parse(json);
+            }
+            catch
+            {
+                return new JArray();
+            }
+        }
+
+        private void SaveAksoSavedGames(JArray games)
+        {
+            File.WriteAllText(AksoSavedGamesPath, games.ToString(Formatting.Indented), Encoding.UTF8);
+        }
+
+        private void SendAksoSavedGames()
+        {
+            if (AksoWebView?.CoreWebView2 == null) return;
+
+            AksoWebView.CoreWebView2.PostWebMessageAsJson(JsonConvert.SerializeObject(new
+            {
+                type = "savedGames",
+                savedGames = LoadAksoSavedGames()
+            }));
+        }
+
+        private void AddAksoSavedGame(JObject data)
+        {
+            JArray games = LoadAksoSavedGames();
+
+            string id = data?["id"]?.Value<string>();
+
+            if (string.IsNullOrWhiteSpace(id))
+                id = Guid.NewGuid().ToString("N");
+
+            string title = data?["title"]?.Value<string>() ?? "";
+            string placeId = data?["placeId"]?.Value<string>() ?? "";
+            string jobId = data?["jobId"]?.Value<string>() ?? "";
+            string vipLink = data?["vipLink"]?.Value<string>() ?? "";
+            string description = data?["description"]?.Value<string>() ?? "";
+
+            Match idMatch = Regex.Match(placeId + " " + vipLink, @"\/games\/(\d+)[\/|\?]?");
+
+            if (idMatch.Success && string.IsNullOrWhiteSpace(placeId))
+                placeId = idMatch.Groups[1].Value;
+
+            if (string.IsNullOrWhiteSpace(title))
+                title = !string.IsNullOrWhiteSpace(placeId) ? "Игра " + placeId : "Сохранённая игра";
+
+            JObject item = new JObject
+            {
+                ["id"] = id,
+                ["title"] = title,
+                ["placeId"] = Regex.Match(placeId ?? "", @"\d+").Value,
+                ["jobId"] = jobId,
+                ["vipLink"] = vipLink,
+                ["description"] = description,
+                ["updatedAt"] = DateTime.Now.ToString("dd.MM.yyyy HH:mm")
+            };
+
+            JToken existing = games.FirstOrDefault(x => x["id"]?.Value<string>() == id);
+
+            if (existing != null)
+                existing.Replace(item);
+            else
+                games.Add(item);
+
+            SaveAksoSavedGames(games);
+            SendAksoSavedGames();
+            SendAksoToast("Сохранено");
+        }
+
+        private void RemoveAksoSavedGame(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return;
+
+            JArray games = LoadAksoSavedGames();
+            JToken existing = games.FirstOrDefault(x => x["id"]?.Value<string>() == id);
+
+            if (existing != null)
+                existing.Remove();
+
+            SaveAksoSavedGames(games);
+            SendAksoSavedGames();
+            SendAksoToast("Удалено");
+        }
         private void StartAksoIntroAnimation()
         {
             try
@@ -1821,7 +2155,7 @@ namespace RBX_Alt_Manager
                 OpenBrowserStrip.Items.Remove(joinGroupToolStripMenuItem);
             }
 
-            if (PuppeteerSupported && (!Directory.Exists(AccountBrowser.Fetcher.DownloadsFolder) || Directory.GetDirectories(AccountBrowser.Fetcher.DownloadsFolder).Length == 0))
+            if (!General.Get<bool>("UseAksoWebViewBrowser") && PuppeteerSupported && (!Directory.Exists(AccountBrowser.Fetcher.DownloadsFolder) || Directory.GetDirectories(AccountBrowser.Fetcher.DownloadsFolder).Length == 0))
             {
                 Add.Visible = false;
                 Remove.Visible = false;
@@ -1849,7 +2183,7 @@ namespace RBX_Alt_Manager
                     });
                 });
             }
-            else if (!PuppeteerSupported)
+            else if (!General.Get<bool>("UseAksoWebViewBrowser") && !PuppeteerSupported)
             {
                 FileInfo Cef = new FileInfo(Path.Combine(Environment.CurrentDirectory, "x86", "CefSharp.dll"));
 
@@ -1962,6 +2296,8 @@ namespace RBX_Alt_Manager
 
         private async void Add_Click(object sender, EventArgs e)
         {
+            AksoWebBrowserForm.Login(); // AKSO_WEBVIEW_ADD
+            return;
             if (PuppeteerSupported)
             {
                 Add.Enabled = false;
@@ -2444,6 +2780,20 @@ namespace RBX_Alt_Manager
 
         private void OpenBrowser_Click(object sender, EventArgs e)
         {
+            if (SelectedAccount == null && (SelectedAccounts == null || SelectedAccounts.Count == 0))
+            {
+                MessageBox.Show("Аккаунт не выбран.", RussianLocalization.AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            IEnumerable<Account> accountsToOpen = SelectedAccounts != null && SelectedAccounts.Count > 0
+                ? SelectedAccounts
+                : new List<Account>() { SelectedAccount };
+
+            foreach (Account account in accountsToOpen.Where(x => x != null))
+                AksoWebBrowserForm.Open(account);
+
+            return; // AKSO_WEBVIEW_OPEN_BROWSER
             if (PuppeteerSupported)
                 foreach (Account account in AccountsView.SelectedObjects)
                     new AccountBrowser(account);
@@ -2682,7 +3032,10 @@ namespace RBX_Alt_Manager
                     if (!string.IsNullOrEmpty(account.GetField("SavedJobId"))) JobId = account.GetField("SavedJobId");
                 }
 
-                await account.JoinServer(PlaceId, JobId, FollowUser, VIPServer);
+                string launchResult = await account.JoinServer(PlaceId, JobId, FollowUser, VIPServer);
+
+                if (!launchResult.Contains("Success"))
+                    SendAksoToast(launchResult);
 
                 if (AsyncJoin)
                 {

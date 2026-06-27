@@ -3,10 +3,10 @@ build/
 packages/
 bin/
 obj/
-
 AccountData.json
 AccountData.json.*
 RecentGames.json
+SavedGames.json
 RAMSettings.ini
 RAMTheme.ini
 BrowserConfig.json
@@ -17,6 +17,6 @@ Backups/
 *.bak*
 *.backup
 *.old
+*.autofix_bak
 nuget.exe
-
 NoEncryption.IUnderstandTheRisks.iautamor

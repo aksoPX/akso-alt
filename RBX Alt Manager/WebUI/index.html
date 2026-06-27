@@ -171,6 +171,81 @@
     </main>
   </div>
 
+    <div id="utilitiesModal" class="modal hidden">
+    <div class="modal-backdrop" data-action="closeUtilities"></div>
+
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2>Утилиты аккаунта</h2>
+          <p id="utilitiesAccountName">Выбранный аккаунт</p>
+        </div>
+        <button class="btn secondary" data-action="closeUtilities">Закрыть</button>
+      </div>
+
+      <div class="modal-grid">
+        <div class="modal-section">
+          <h3>Приватность и PIN</h3>
+
+          <label>Кто может Follow</label>
+          <select id="utilFollowPrivacy">
+            <option value="0">Все</option>
+            <option value="1">Подписчики</option>
+            <option value="2">Подписки</option>
+            <option value="3">Друзья</option>
+            <option value="4">Никто</option>
+          </select>
+          <button class="btn primary wide" data-action="utilSetFollowPrivacy">Сохранить Follow privacy</button>
+
+          <label>PIN</label>
+          <input id="utilPin" type="password" placeholder="4 цифры">
+          <button class="btn secondary wide" data-action="utilUnlockPin">Разблокировать PIN</button>
+
+          <button class="btn danger wide" data-action="utilLogoutOtherSessions">Выйти из других сессий</button>
+        </div>
+
+        <div class="modal-section">
+          <h3>Профиль</h3>
+
+          <label>Display Name</label>
+          <input id="utilDisplayName" placeholder="Новый display name">
+          <button class="btn primary wide" data-action="utilSetDisplayName">Изменить Display Name</button>
+
+          <label>Username игрока</label>
+          <input id="utilTargetUsername" placeholder="Username">
+          <div class="row">
+            <button class="btn secondary" data-action="utilAddFriend">Добавить друга</button>
+            <button class="btn danger" data-action="utilBlockUser">Block</button>
+            <button class="btn secondary" data-action="utilUnblockUser">Unblock</button>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <h3>Смена пароля</h3>
+
+          <label>Текущий пароль</label>
+          <input id="utilCurrentPassword" type="password" placeholder="Текущий пароль">
+
+          <label>Новый пароль</label>
+          <input id="utilNewPassword" type="password" placeholder="Новый пароль">
+
+          <button class="btn danger wide" data-action="utilChangePassword">Сменить пароль</button>
+        </div>
+
+        <div class="modal-section">
+          <h3>Email</h3>
+
+          <label>Пароль аккаунта</label>
+          <input id="utilEmailPassword" type="password" placeholder="Пароль">
+
+          <label>Новый email</label>
+          <input id="utilNewEmail" type="text" placeholder="email@example.com">
+
+          <button class="btn danger wide" data-action="utilChangeEmail">Сменить email</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="toast" class="toast"></div>
   <script src="app.js"></script>
 </body>
